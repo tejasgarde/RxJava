@@ -3308,8 +3308,9 @@ public class Observable<T> {
     /**
      * Returns an Observable that emits buffers of items it collects from the source Observable. The resulting
      * Observable emits connected, non-overlapping buffers, each containing {@code count} items. When the source
-     * Observable completes or encounters an error, the resulting Observable emits the current buffer and
-     * propagates the notification from the source Observable.
+     * Observable completes, the resulting Observable emits the current buffer and propagates the notification 
+     * from the source Observable. Note that if the source Observable issues an onError notification 
+     * the event is passed on immediately without first emitting the buffer it is in the process of assembling.
      * <p>
      * <img width="640" height="320" src="https://raw.github.com/wiki/ReactiveX/RxJava/images/rx-operators/buffer3.png" alt="">
      * <dl>
@@ -3330,8 +3331,9 @@ public class Observable<T> {
     /**
      * Returns an Observable that emits buffers of items it collects from the source Observable. The resulting
      * Observable emits buffers every {@code skip} items, each containing {@code count} items. When the source
-     * Observable completes or encounters an error, the resulting Observable emits the current buffer and
-     * propagates the notification from the source Observable.
+     * Observable completes, the resulting Observable emits the current buffer and propagates the notification 
+     * from the source Observable. Note that if the source Observable issues an onError notification 
+     * the event is passed on immediately without first emitting the buffer it is in the process of assembling.
      * <p>
      * <img width="640" height="320" src="https://raw.github.com/wiki/ReactiveX/RxJava/images/rx-operators/buffer4.png" alt="">
      * <dl>
@@ -3357,8 +3359,9 @@ public class Observable<T> {
      * Returns an Observable that emits buffers of items it collects from the source Observable. The resulting
      * Observable starts a new buffer periodically, as determined by the {@code timeshift} argument. It emits
      * each buffer after a fixed timespan, specified by the {@code timespan} argument. When the source
-     * Observable completes or encounters an error, the resulting Observable emits the current buffer and
-     * propagates the notification from the source Observable.
+     * Observable completes, the resulting Observable emits the current buffer and propagates the notification 
+     * from the source Observable. Note that if the source Observable issues an onError notification 
+     * the event is passed on immediately without first emitting the buffer it is in the process of assembling.
      * <p>
      * <img width="640" height="320" src="https://raw.github.com/wiki/ReactiveX/RxJava/images/rx-operators/buffer7.png" alt="">
      * <dl>
@@ -3387,8 +3390,10 @@ public class Observable<T> {
      * Returns an Observable that emits buffers of items it collects from the source Observable. The resulting
      * Observable starts a new buffer periodically, as determined by the {@code timeshift} argument, and on the
      * specified {@code scheduler}. It emits each buffer after a fixed timespan, specified by the
-     * {@code timespan} argument. When the source Observable completes or encounters an error, the resulting
-     * Observable emits the current buffer and propagates the notification from the source Observable.
+     * {@code timespan} argument. When the source Observable completes, the resulting Observable emits the current 
+     * buffer and propagates the notification  from the source Observable. Note that if the source 
+     * Observable issues an onError notification the event is passed on immediately without first emitting 
+     * the buffer it is in the process of assembling.
      * <p>
      * <img width="640" height="320" src="https://raw.github.com/wiki/ReactiveX/RxJava/images/rx-operators/buffer7.s.png" alt="">
      * <dl>
@@ -3418,8 +3423,10 @@ public class Observable<T> {
     /**
      * Returns an Observable that emits buffers of items it collects from the source Observable. The resulting
      * Observable emits connected, non-overlapping buffers, each of a fixed duration specified by the
-     * {@code timespan} argument. When the source Observable completes or encounters an error, the resulting
-     * Observable emits the current buffer and propagates the notification from the source Observable.
+     * {@code timespan} argument. When the source Observable completes, the resulting Observable emits the current 
+     * buffer and propagates the notification  from the source Observable. Note that if the source 
+     * Observable issues an onError notification the event is passed on immediately without first emitting 
+     * the buffer it is in the process of assembling.
      * <p>
      * <img width="640" height="320" src="https://raw.github.com/wiki/ReactiveX/RxJava/images/rx-operators/buffer5.png" alt="">
      * <dl>
@@ -3447,8 +3454,10 @@ public class Observable<T> {
      * Returns an Observable that emits buffers of items it collects from the source Observable. The resulting
      * Observable emits connected, non-overlapping buffers, each of a fixed duration specified by the
      * {@code timespan} argument or a maximum size specified by the {@code count} argument (whichever is reached
-     * first). When the source Observable completes or encounters an error, the resulting Observable emits the
-     * current buffer and propagates the notification from the source Observable.
+     * first). When the source Observable completes, the resulting Observable emits the current  buffer and propagates 
+     * the notification  from the source Observable. Note that if the source Observable issues an onError 
+     * notification the event is passed on immediately without first emitting the buffer it is in the process 
+     * of assembling.
      * <p>
      * <img width="640" height="320" src="https://raw.github.com/wiki/ReactiveX/RxJava/images/rx-operators/buffer6.png" alt="">
      * <dl>
@@ -3479,9 +3488,10 @@ public class Observable<T> {
      * Returns an Observable that emits buffers of items it collects from the source Observable. The resulting
      * Observable emits connected, non-overlapping buffers, each of a fixed duration specified by the
      * {@code timespan} argument as measured on the specified {@code scheduler}, or a maximum size specified by
-     * the {@code count} argument (whichever is reached first). When the source Observable completes or
-     * encounters an error, the resulting Observable emits the current buffer and propagates the notification
-     * from the source Observable.
+     * the {@code count} argument (whichever is reached first). When the source Observable completes, the resulting 
+     * Observable emits the current buffer and propagates the notification from the source Observable. 
+     * Note that if the source Observable issues an onError notification the event is passed on immediately 
+     * without first emitting the buffer it is in the process of assembling.
      * <p>
      * <img width="640" height="320" src="https://raw.github.com/wiki/ReactiveX/RxJava/images/rx-operators/buffer6.s.png" alt="">
      * <dl>
@@ -3513,9 +3523,10 @@ public class Observable<T> {
     /**
      * Returns an Observable that emits buffers of items it collects from the source Observable. The resulting
      * Observable emits connected, non-overlapping buffers, each of a fixed duration specified by the
-     * {@code timespan} argument and on the specified {@code scheduler}. When the source Observable completes or
-     * encounters an error, the resulting Observable emits the current buffer and propagates the notification
-     * from the source Observable.
+     * {@code timespan} argument and on the specified {@code scheduler}. When the source Observable completes, 
+     * the resulting Observable emits the current buffer and propagates the notification from the source Observable. 
+     * Note that if the source Observable issues an onError notification the event is passed on immediately 
+     * without first emitting the buffer it is in the process of assembling.
      * <p>
      * <img width="640" height="320" src="https://raw.github.com/wiki/ReactiveX/RxJava/images/rx-operators/buffer5.s.png" alt="">
      * <dl>
