@@ -6241,7 +6241,7 @@ public class Observable<T> {
      * @see <a href="http://reactivex.io/documentation/operators/catch.html">ReactiveX operators documentation: Catch</a>
      */
     public final Observable<T> onErrorResumeNext(final Observable<? extends T> resumeSequence) {
-        return lift(new OperatorOnErrorResumeNextViaObservable<T>(resumeSequence));
+        return lift(OperatorOnErrorResumeNextViaFunction.withOther(resumeSequence));
     }
 
     /**
@@ -6271,7 +6271,7 @@ public class Observable<T> {
      * @see <a href="http://reactivex.io/documentation/operators/catch.html">ReactiveX operators documentation: Catch</a>
      */
     public final Observable<T> onErrorReturn(Func1<Throwable, ? extends T> resumeFunction) {
-        return lift(new OperatorOnErrorReturn<T>(resumeFunction));
+        return lift(OperatorOnErrorResumeNextViaFunction.withSingle(resumeFunction));
     }
 
     /**
@@ -6307,7 +6307,7 @@ public class Observable<T> {
      * @see <a href="http://reactivex.io/documentation/operators/catch.html">ReactiveX operators documentation: Catch</a>
      */
     public final Observable<T> onExceptionResumeNext(final Observable<? extends T> resumeSequence) {
-        return lift(new OperatorOnExceptionResumeNextViaObservable<T>(resumeSequence));
+        return lift(OperatorOnErrorResumeNextViaFunction.withException(resumeSequence));
     }
 
     /**
