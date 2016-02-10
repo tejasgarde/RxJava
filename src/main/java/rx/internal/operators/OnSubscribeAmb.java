@@ -271,14 +271,14 @@ public final class OnSubscribeAmb<T> implements OnSubscribe<T>{
         private final Selection<T> selection;
         private boolean chosen;
 
-        private AmbSubscriber(long requested, Subscriber<? super T> subscriber, Selection<T> selection) {
+        AmbSubscriber(long requested, Subscriber<? super T> subscriber, Selection<T> selection) {
             this.subscriber = subscriber;
             this.selection = selection;
             // initial request
             request(requested);
         }
 
-        private final void requestMore(long n) {
+        private void requestMore(long n) {
             request(n);
         }
 
@@ -353,8 +353,6 @@ public final class OnSubscribeAmb<T> implements OnSubscribe<T>{
     //give default access instead of private as a micro-optimization 
     //for access from anonymous classes below
     final Iterable<? extends Observable<? extends T>> sources;
-    final Selection<T> selection = new Selection<T>();
-    final AtomicReference<AmbSubscriber<T>> choice = selection.choice;
     
     private OnSubscribeAmb(Iterable<? extends Observable<? extends T>> sources) {
         this.sources = sources;
@@ -362,6 +360,8 @@ public final class OnSubscribeAmb<T> implements OnSubscribe<T>{
 
     @Override
     public void call(final Subscriber<? super T> subscriber) {
+        final Selection<T> selection = new Selection<T>();
+        final AtomicReference<AmbSubscriber<T>> choice = selection.choice;
         
         //setup unsubscription of all the subscribers to the sources
         subscriber.add(Subscriptions.create(new Action0() {
@@ -434,7 +434,7 @@ public final class OnSubscribeAmb<T> implements OnSubscribe<T>{
         });
     }
 
-    private static <T> void unsubscribeAmbSubscribers(Collection<AmbSubscriber<T>> ambSubscribers) {
+    static <T> void unsubscribeAmbSubscribers(Collection<AmbSubscriber<T>> ambSubscribers) {
         if(!ambSubscribers.isEmpty()) {
             for (AmbSubscriber<T> other : ambSubscribers) {
                 other.unsubscribe();

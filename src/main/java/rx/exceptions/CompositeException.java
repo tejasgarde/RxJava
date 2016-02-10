@@ -28,7 +28,7 @@ import java.util.Set;
 /**
  * Represents an exception that is a composite of one or more other exceptions. A {@code CompositeException}
  * does not modify the structure of any exception it wraps, but at print-time it iterates through the list of
- * Throwables contained in the composit in order to print them all.
+ * Throwables contained in the composite in order to print them all.
  *
  * Its invariant is to contain an immutable, ordered (by insertion order), unique list of non-composite
  * exceptions. You can retrieve individual exceptions in this list with {@link #getExceptions()}.
@@ -118,12 +118,13 @@ public final class CompositeException extends RuntimeException {
                 // we now have 'e' as the last in the chain
                 try {
                     chain.initCause(e);
+                    chain = chain.getCause();
                 } catch (Throwable t) {
                     // ignore
                     // the javadocs say that some Throwables (depending on how they're made) will never
                     // let me call initCause without blowing up even if it returns null
+                    chain = e;
                 }
-                chain = chain.getCause();
             }
             cause = _cause;
         }
@@ -247,7 +248,7 @@ public final class CompositeException extends RuntimeException {
         }
     }
 
-    private final List<Throwable> getListOfCauses(Throwable ex) {
+    private List<Throwable> getListOfCauses(Throwable ex) {
         List<Throwable> list = new ArrayList<Throwable>();
         Throwable root = ex.getCause();
         if (root == null) {

@@ -23,6 +23,7 @@ import java.util.concurrent.atomic.*;
 import org.junit.*;
 
 import rx.Completable.*;
+import rx.Observable.OnSubscribe;
 import rx.exceptions.*;
 import rx.functions.*;
 import rx.observers.TestSubscriber;
@@ -30,6 +31,9 @@ import rx.plugins.RxJavaPlugins;
 import rx.schedulers.*;
 import rx.subjects.PublishSubject;
 import rx.subscriptions.*;
+
+import static org.mockito.Mockito.*;
+import static org.junit.Assert.*;
 
 /**
  * Test Completable methods and operators.
@@ -355,6 +359,64 @@ public class CompletableTest {
         
         // FIXME this request pattern looks odd because all 10 completions trigger 1 requests
         Assert.assertEquals(Arrays.asList(5L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L), requested);
+    }
+    
+    @Test
+    public void andThen() {
+        TestSubscriber<String> ts = new TestSubscriber<String>(0);
+        Completable.complete().andThen(Observable.just("foo")).subscribe(ts);
+        ts.requestMore(1);
+        ts.assertValue("foo");
+        ts.assertCompleted();
+        ts.assertNoErrors();
+    }
+    
+    @Test
+    public void andThenNever() {
+        TestSubscriber<String> ts = new TestSubscriber<String>(0);
+        Completable.never().andThen(Observable.just("foo")).subscribe(ts);
+        ts.requestMore(1);
+        ts.assertNoValues();
+        ts.assertNoTerminalEvent();
+    }
+    
+    @Test
+    public void andThenError() {
+        TestSubscriber<String> ts = new TestSubscriber<String>(0);
+        final AtomicBoolean hasRun = new AtomicBoolean(false);
+        final Exception e = new Exception();
+        Completable.create(new CompletableOnSubscribe() {
+                @Override
+                public void call(CompletableSubscriber cs) {
+                    cs.onError(e);
+                }
+            })
+            .andThen(Observable.<String>create(new OnSubscribe<String>() {
+                @Override
+                public void call(Subscriber<? super String> s) {
+                    hasRun.set(true);
+                    s.onNext("foo");
+                    s.onCompleted();
+                }
+            }))
+            .subscribe(ts);
+        ts.assertNoValues();
+        ts.assertError(e);
+        Assert.assertFalse("Should not have subscribed to observable when completable errors", hasRun.get());
+    }
+    
+    @Test
+    public void andThenSubscribeOn() {
+        TestSubscriber<String> ts = new TestSubscriber<String>(0);
+        TestScheduler scheduler = new TestScheduler();
+        Completable.complete().andThen(Observable.just("foo").delay(1, TimeUnit.SECONDS, scheduler)).subscribe(ts);
+        ts.requestMore(1);
+        ts.assertNoValues();
+        ts.assertNoTerminalEvent();
+        scheduler.advanceTimeBy(1, TimeUnit.SECONDS);
+        ts.assertValue("foo");
+        ts.assertCompleted();
+        ts.assertNoErrors();
     }
     
     @Test(expected = NullPointerException.class)
@@ -3410,4 +3472,135 @@ public class CompletableTest {
         ts.assertError(TestException.class);
         ts.assertNotCompleted();
     }
+    
+    @Test
+    public void usingFactoryThrows() {
+        @SuppressWarnings("unchecked")
+        Action1<Integer> onDispose = mock(Action1.class);
+        
+        TestSubscriber<Integer> ts = TestSubscriber.create();
+        
+        Completable.using(new Func0<Integer>() {
+            @Override
+            public Integer call() {
+                return 1;
+            }
+        },
+        new Func1<Integer, Completable>() {
+            @Override
+            public Completable call(Integer t) {
+                throw new TestException();
+            }
+        }, onDispose).subscribe(ts);
+        
+        verify(onDispose).call(1);
+        
+        ts.assertNoValues();
+        ts.assertNotCompleted();
+        ts.assertError(TestException.class);
+    }
+
+    @Test
+    public void usingFactoryAndDisposerThrow() {
+        Action1<Integer> onDispose = new Action1<Integer>() {
+            @Override
+            public void call(Integer t) {
+                throw new TestException();
+            }
+        };
+        
+        TestSubscriber<Integer> ts = TestSubscriber.create();
+        
+        Completable.using(new Func0<Integer>() {
+            @Override
+            public Integer call() {
+                return 1;
+            }
+        },
+        new Func1<Integer, Completable>() {
+            @Override
+            public Completable call(Integer t) {
+                throw new TestException();
+            }
+        }, onDispose).subscribe(ts);
+        
+        ts.assertNoValues();
+        ts.assertNotCompleted();
+        ts.assertError(CompositeException.class);
+        
+        CompositeException ex = (CompositeException)ts.getOnErrorEvents().get(0);
+        
+        List<Throwable> listEx = ex.getExceptions();
+        
+        assertEquals(2, listEx.size());
+        
+        assertTrue(listEx.get(0).toString(), listEx.get(0) instanceof TestException);
+        assertTrue(listEx.get(1).toString(), listEx.get(1) instanceof TestException);
+    }
+
+    @Test
+    public void usingFactoryReturnsNull() {
+        @SuppressWarnings("unchecked")
+        Action1<Integer> onDispose = mock(Action1.class);
+        
+        TestSubscriber<Integer> ts = TestSubscriber.create();
+        
+        Completable.using(new Func0<Integer>() {
+            @Override
+            public Integer call() {
+                return 1;
+            }
+        },
+        new Func1<Integer, Completable>() {
+            @Override
+            public Completable call(Integer t) {
+                return null;
+            }
+        }, onDispose).subscribe(ts);
+        
+        verify(onDispose).call(1);
+        
+        ts.assertNoValues();
+        ts.assertNotCompleted();
+        ts.assertError(NullPointerException.class);
+    }
+
+    @Test
+    public void usingFactoryReturnsNullAndDisposerThrows() {
+        Action1<Integer> onDispose = new Action1<Integer>() {
+            @Override
+            public void call(Integer t) {
+                throw new TestException();
+            }
+        };
+        
+        TestSubscriber<Integer> ts = TestSubscriber.create();
+        
+        Completable.using(new Func0<Integer>() {
+            @Override
+            public Integer call() {
+                return 1;
+            }
+        },
+        new Func1<Integer, Completable>() {
+            @Override
+            public Completable call(Integer t) {
+                return null;
+            }
+        }, onDispose).subscribe(ts);
+        
+        ts.assertNoValues();
+        ts.assertNotCompleted();
+        ts.assertError(CompositeException.class);
+        
+        CompositeException ex = (CompositeException)ts.getOnErrorEvents().get(0);
+        
+        List<Throwable> listEx = ex.getExceptions();
+        
+        assertEquals(2, listEx.size());
+        
+        assertTrue(listEx.get(0).toString(), listEx.get(0) instanceof NullPointerException);
+        assertTrue(listEx.get(1).toString(), listEx.get(1) instanceof TestException);
+    }
+
 }

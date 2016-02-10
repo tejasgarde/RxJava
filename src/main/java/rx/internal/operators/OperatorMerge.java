@@ -81,6 +81,9 @@ public final class OperatorMerge<T> implements Operator<T, Observable<? extends 
      * @return
      */
     public static <T> OperatorMerge<T> instance(boolean delayErrors, int maxConcurrent) {
+        if (maxConcurrent <= 0) {
+            throw new IllegalArgumentException("maxConcurrent > 0 required but it was " + maxConcurrent);
+        }
         if (maxConcurrent == Integer.MAX_VALUE) {
             return instance(delayErrors);
         }
@@ -90,7 +93,7 @@ public final class OperatorMerge<T> implements Operator<T, Observable<? extends 
     final boolean delayErrors;
     final int maxConcurrent;
 
-    private OperatorMerge(boolean delayErrors, int maxConcurrent) {
+    OperatorMerge(boolean delayErrors, int maxConcurrent) {
         this.delayErrors = delayErrors;
         this.maxConcurrent = maxConcurrent;
     }

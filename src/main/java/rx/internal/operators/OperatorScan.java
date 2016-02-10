@@ -44,7 +44,7 @@ import rx.internal.util.unsafe.*;
 public final class OperatorScan<R, T> implements Operator<R, T> {
 
     private final Func0<R> initialValueFactory;
-    private final Func2<R, ? super T, R> accumulator;
+    final Func2<R, ? super T, R> accumulator;
     // sentinel if we don't receive an initial value
     private static final Object NO_INITIAL_VALUE = new Object();
 
@@ -108,8 +108,7 @@ public final class OperatorScan<R, T> implements Operator<R, T> {
                         try {
                             v = accumulator.call(v, t);
                         } catch (Throwable e) {
-                            Exceptions.throwIfFatal(e);
-                            child.onError(OnErrorThrowable.addValueAsLastCause(e, t));
+                            Exceptions.throwOrReport(e, child, t);
                             return;
                         }
                     }
@@ -138,8 +137,7 @@ public final class OperatorScan<R, T> implements Operator<R, T> {
                 try {
                     v = accumulator.call(v, currentValue);
                 } catch (Throwable e) {
-                    Exceptions.throwIfFatal(e);
-                    onError(OnErrorThrowable.addValueAsLastCause(e, currentValue));
+                    Exceptions.throwOrReport(e, this, currentValue);
                     return;
                 }
                 value = v;
@@ -322,8 +320,7 @@ public final class OperatorScan<R, T> implements Operator<R, T> {
                     try {
                         child.onNext(v);
                     } catch (Throwable ex) {
-                        Exceptions.throwIfFatal(ex);
-                        child.onError(OnErrorThrowable.addValueAsLastCause(ex, v));
+                        Exceptions.throwOrReport(ex, child, v);
                         return;
                     }
                     r--;

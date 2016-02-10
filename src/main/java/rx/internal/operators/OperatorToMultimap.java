@@ -58,10 +58,10 @@ public final class OperatorToMultimap<T, K, V> implements Operator<Map<K, Collec
         }
     }
 
-    private final Func1<? super T, ? extends K> keySelector;
-    private final Func1<? super T, ? extends V> valueSelector;
+    final Func1<? super T, ? extends K> keySelector;
+    final Func1<? super T, ? extends V> valueSelector;
     private final Func0<? extends Map<K, Collection<V>>> mapFactory;
-    private final Func1<? super K, ? extends Collection<V>> collectionFactory;
+    final Func1<? super K, ? extends Collection<V>> collectionFactory;
 
     /**
      * ToMultimap with key selector, custom value selector,
@@ -138,8 +138,7 @@ public final class OperatorToMultimap<T, K, V> implements Operator<Map<K, Collec
                     key = keySelector.call(v);
                     value = valueSelector.call(v);
                 } catch (Throwable ex) {
-                    Exceptions.throwIfFatal(ex);
-                    subscriber.onError(ex);
+                    Exceptions.throwOrReport(ex, subscriber);
                     return;
                 }
                 
@@ -148,8 +147,7 @@ public final class OperatorToMultimap<T, K, V> implements Operator<Map<K, Collec
                     try {
                         collection = collectionFactory.call(key);
                     } catch (Throwable ex) {
-                        Exceptions.throwIfFatal(ex);
-                        subscriber.onError(ex);
+                        Exceptions.throwOrReport(ex, subscriber);
                         return;
                     }
                     map.put(key, collection);

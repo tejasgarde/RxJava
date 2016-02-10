@@ -37,6 +37,8 @@ import rx.functions.FuncN;
 import rx.annotations.Beta;
 import rx.internal.operators.*;
 import rx.internal.producers.SingleDelayedProducer;
+import rx.internal.util.ScalarSynchronousSingle;
+import rx.internal.util.UtilityFunctions;
 import rx.singles.BlockingSingle;
 import rx.observers.SafeSubscriber;
 import rx.plugins.*;
@@ -111,7 +113,7 @@ public class Single<T> {
         this.onSubscribe = f;
     }
 
-    private static final RxJavaObservableExecutionHook hook = RxJavaPlugins.getInstance().getObservableExecutionHook();
+    static final RxJavaObservableExecutionHook hook = RxJavaPlugins.getInstance().getObservableExecutionHook();
 
     /**
      * Returns a Single that will execute the specified function when a {@link SingleSubscriber} executes it or
@@ -139,7 +141,7 @@ public class Single<T> {
      * @return a Single that, when a {@link Subscriber} subscribes to it, will execute the specified function
      * @see <a href="http://reactivex.io/documentation/operators/create.html">ReactiveX operators documentation: Create</a>
      */
-    public final static <T> Single<T> create(OnSubscribe<T> f) {
+    public static <T> Single<T> create(OnSubscribe<T> f) {
         return new Single<T>(f); // TODO need hook 
     }
 
@@ -172,7 +174,7 @@ public class Single<T> {
      * @return a Single that is the result of applying the lifted Operator to the source Single
      * @see <a href="https://github.com/ReactiveX/RxJava/wiki/Implementing-Your-Own-Operators">RxJava wiki: Implementing Your Own Operators</a>
      */
-    private final <R> Single<R> lift(final Operator<? extends R, ? super T> lift) {
+    private <R> Single<R> lift(final Operator<? extends R, ? super T> lift) {
         // This method is private because not sure if we want to expose the Observable.Operator in this public API rather than a Single.Operator 
 
         return new Single<R>(new Observable.OnSubscribe<R>() {
@@ -185,17 +187,15 @@ public class Single<T> {
                         st.onStart();
                         onSubscribe.call(st);
                     } catch (Throwable e) {
-                        Exceptions.throwIfFatal(e);
                         // localized capture of errors rather than it skipping all operators
                         // and ending up in the try/catch of the subscribe method which then
                         // prevents onErrorResumeNext and other similar approaches to error handling
-                        st.onError(e);
+                        Exceptions.throwOrReport(e, st);
                     }
                 } catch (Throwable e) {
-                    Exceptions.throwIfFatal(e);
                     // if the lift function failed all we can do is pass the error to the final Subscriber
                     // as we don't have the operator available to us
-                    o.onError(e);
+                    Exceptions.throwOrReport(e, o);
                 }
             }
         });
@@ -259,7 +259,7 @@ public class Single<T> {
      * @return a Single that emits an Observable that emits the same item as the source Single
      * @see <a href="http://reactivex.io/documentation/operators/to.html">ReactiveX operators documentation: To</a>
      */
-    private final Single<Observable<T>> nest() {
+    private Single<Observable<T>> nest() {
         return Single.just(asObservable(this));
     }
 
@@ -284,7 +284,7 @@ public class Single<T> {
      * @return an Observable that emits items emitted by the two source Singles, one after the other.
      * @see <a href="http://reactivex.io/documentation/operators/concat.html">ReactiveX operators documentation: Concat</a>
      */
-    public final static <T> Observable<T> concat(Single<? extends T> t1, Single<? extends T> t2) {
+    public static <T> Observable<T> concat(Single<? extends T> t1, Single<? extends T> t2) {
         return Observable.concat(asObservable(t1), asObservable(t2));
     }
 
@@ -306,7 +306,7 @@ public class Single<T> {
      * @return an Observable that emits items emitted by the three source Singles, one after the other.
      * @see <a href="http://reactivex.io/documentation/operators/concat.html">ReactiveX operators documentation: Concat</a>
      */
-    public final static <T> Observable<T> concat(Single<? extends T> t1, Single<? extends T> t2, Single<? extends T> t3) {
+    public static <T> Observable<T> concat(Single<? extends T> t1, Single<? extends T> t2, Single<? extends T> t3) {
         return Observable.concat(asObservable(t1), asObservable(t2), asObservable(t3));
     }
 
@@ -330,7 +330,7 @@ public class Single<T> {
      * @return an Observable that emits items emitted by the four source Singles, one after the other.
      * @see <a href="http://reactivex.io/documentation/operators/concat.html">ReactiveX operators documentation: Concat</a>
      */
-    public final static <T> Observable<T> concat(Single<? extends T> t1, Single<? extends T> t2, Single<? extends T> t3, Single<? extends T> t4) {
+    public static <T> Observable<T> concat(Single<? extends T> t1, Single<? extends T> t2, Single<? extends T> t3, Single<? extends T> t4) {
         return Observable.concat(asObservable(t1), asObservable(t2), asObservable(t3), asObservable(t4));
     }
 
@@ -356,7 +356,7 @@ public class Single<T> {
      * @return an Observable that emits items emitted by the five source Singles, one after the other.
      * @see <a href="http://reactivex.io/documentation/operators/concat.html">ReactiveX operators documentation: Concat</a>
      */
-    public final static <T> Observable<T> concat(Single<? extends T> t1, Single<? extends T> t2, Single<? extends T> t3, Single<? extends T> t4, Single<? extends T> t5) {
+    public static <T> Observable<T> concat(Single<? extends T> t1, Single<? extends T> t2, Single<? extends T> t3, Single<? extends T> t4, Single<? extends T> t5) {
         return Observable.concat(asObservable(t1), asObservable(t2), asObservable(t3), asObservable(t4), asObservable(t5));
     }
 
@@ -384,7 +384,7 @@ public class Single<T> {
      * @return an Observable that emits items emitted by the six source Singles, one after the other.
      * @see <a href="http://reactivex.io/documentation/operators/concat.html">ReactiveX operators documentation: Concat</a>
      */
-    public final static <T> Observable<T> concat(Single<? extends T> t1, Single<? extends T> t2, Single<? extends T> t3, Single<? extends T> t4, Single<? extends T> t5, Single<? extends T> t6) {
+    public static <T> Observable<T> concat(Single<? extends T> t1, Single<? extends T> t2, Single<? extends T> t3, Single<? extends T> t4, Single<? extends T> t5, Single<? extends T> t6) {
         return Observable.concat(asObservable(t1), asObservable(t2), asObservable(t3), asObservable(t4), asObservable(t5), asObservable(t6));
     }
 
@@ -414,7 +414,7 @@ public class Single<T> {
      * @return an Observable that emits items emitted by the seven source Singles, one after the other.
      * @see <a href="http://reactivex.io/documentation/operators/concat.html">ReactiveX operators documentation: Concat</a>
      */
-    public final static <T> Observable<T> concat(Single<? extends T> t1, Single<? extends T> t2, Single<? extends T> t3, Single<? extends T> t4, Single<? extends T> t5, Single<? extends T> t6, Single<? extends T> t7) {
+    public static <T> Observable<T> concat(Single<? extends T> t1, Single<? extends T> t2, Single<? extends T> t3, Single<? extends T> t4, Single<? extends T> t5, Single<? extends T> t6, Single<? extends T> t7) {
         return Observable.concat(asObservable(t1), asObservable(t2), asObservable(t3), asObservable(t4), asObservable(t5), asObservable(t6), asObservable(t7));
     }
 
@@ -446,7 +446,7 @@ public class Single<T> {
      * @return an Observable that emits items emitted by the eight source Singles, one after the other.
      * @see <a href="http://reactivex.io/documentation/operators/concat.html">ReactiveX operators documentation: Concat</a>
      */
-    public final static <T> Observable<T> concat(Single<? extends T> t1, Single<? extends T> t2, Single<? extends T> t3, Single<? extends T> t4, Single<? extends T> t5, Single<? extends T> t6, Single<? extends T> t7, Single<? extends T> t8) {
+    public static <T> Observable<T> concat(Single<? extends T> t1, Single<? extends T> t2, Single<? extends T> t3, Single<? extends T> t4, Single<? extends T> t5, Single<? extends T> t6, Single<? extends T> t7, Single<? extends T> t8) {
         return Observable.concat(asObservable(t1), asObservable(t2), asObservable(t3), asObservable(t4), asObservable(t5), asObservable(t6), asObservable(t7), asObservable(t8));
     }
 
@@ -480,7 +480,7 @@ public class Single<T> {
      * @return an Observable that emits items emitted by the nine source Singles, one after the other.
      * @see <a href="http://reactivex.io/documentation/operators/concat.html">ReactiveX operators documentation: Concat</a>
      */
-    public final static <T> Observable<T> concat(Single<? extends T> t1, Single<? extends T> t2, Single<? extends T> t3, Single<? extends T> t4, Single<? extends T> t5, Single<? extends T> t6, Single<? extends T> t7, Single<? extends T> t8, Single<? extends T> t9) {
+    public static <T> Observable<T> concat(Single<? extends T> t1, Single<? extends T> t2, Single<? extends T> t3, Single<? extends T> t4, Single<? extends T> t5, Single<? extends T> t6, Single<? extends T> t7, Single<? extends T> t8, Single<? extends T> t9) {
         return Observable.concat(asObservable(t1), asObservable(t2), asObservable(t3), asObservable(t4), asObservable(t5), asObservable(t6), asObservable(t7), asObservable(t8), asObservable(t9));
     }
 
@@ -502,7 +502,7 @@ public class Single<T> {
      *         the subscriber subscribes to it
      * @see <a href="http://reactivex.io/documentation/operators/empty-never-throw.html">ReactiveX operators documentation: Throw</a>
      */
-    public final static <T> Single<T> error(final Throwable exception) {
+    public static <T> Single<T> error(final Throwable exception) {
         return Single.create(new OnSubscribe<T>() {
 
             @Override
@@ -536,7 +536,7 @@ public class Single<T> {
      * @return a {@code Single} that emits the item from the source {@link Future}
      * @see <a href="http://reactivex.io/documentation/operators/from.html">ReactiveX operators documentation: From</a>
      */
-    public final static <T> Single<T> from(Future<? extends T> future) {
+    public static <T> Single<T> from(Future<? extends T> future) {
         return new Single<T>(OnSubscribeToObservableFuture.toObservableFuture(future));
     }
 
@@ -567,7 +567,7 @@ public class Single<T> {
      * @return a {@code Single} that emits the item from the source {@link Future}
      * @see <a href="http://reactivex.io/documentation/operators/from.html">ReactiveX operators documentation: From</a>
      */
-    public final static <T> Single<T> from(Future<? extends T> future, long timeout, TimeUnit unit) {
+    public static <T> Single<T> from(Future<? extends T> future, long timeout, TimeUnit unit) {
         return new Single<T>(OnSubscribeToObservableFuture.toObservableFuture(future, timeout, unit));
     }
 
@@ -595,7 +595,7 @@ public class Single<T> {
      * @return a {@code Single} that emits the item from the source {@link Future}
      * @see <a href="http://reactivex.io/documentation/operators/from.html">ReactiveX operators documentation: From</a>
      */
-    public final static <T> Single<T> from(Future<? extends T> future, Scheduler scheduler) {
+    public static <T> Single<T> from(Future<? extends T> future, Scheduler scheduler) {
         return new Single<T>(OnSubscribeToObservableFuture.toObservableFuture(future)).subscribeOn(scheduler);
     }
 
@@ -655,16 +655,8 @@ public class Single<T> {
      * @return a {@code Single} that emits {@code value}
      * @see <a href="http://reactivex.io/documentation/operators/just.html">ReactiveX operators documentation: Just</a>
      */
-    public final static <T> Single<T> just(final T value) {
-        // TODO add similar optimization as ScalarSynchronousObservable
-        return Single.create(new OnSubscribe<T>() {
-
-            @Override
-            public void call(SingleSubscriber<? super T> te) {
-                te.onSuccess(value);
-            }
-
-        });
+    public static <T> Single<T> just(final T value) {
+        return ScalarSynchronousSingle.create(value);
     }
 
     /**
@@ -684,7 +676,10 @@ public class Single<T> {
      *         by {@code source}
      * @see <a href="http://reactivex.io/documentation/operators/merge.html">ReactiveX operators documentation: Merge</a>
      */
-    public final static <T> Single<T> merge(final Single<? extends Single<? extends T>> source) {
+    public static <T> Single<T> merge(final Single<? extends Single<? extends T>> source) {
+        if (source instanceof ScalarSynchronousSingle) {
+            return ((ScalarSynchronousSingle<T>) source).scalarFlatMap((Func1) UtilityFunctions.identity());
+        }
         return Single.create(new OnSubscribe<T>() {
 
             @Override
@@ -725,7 +720,7 @@ public class Single<T> {
      * @return an Observable that emits all of the items emitted by the source Singles
      * @see <a href="http://reactivex.io/documentation/operators/merge.html">ReactiveX operators documentation: Merge</a>
      */
-    public final static <T> Observable<T> merge(Single<? extends T> t1, Single<? extends T> t2) {
+    public static <T> Observable<T> merge(Single<? extends T> t1, Single<? extends T> t2) {
         return Observable.merge(asObservable(t1), asObservable(t2));
     }
 
@@ -750,7 +745,7 @@ public class Single<T> {
      * @return an Observable that emits all of the items emitted by the source Singles
      * @see <a href="http://reactivex.io/documentation/operators/merge.html">ReactiveX operators documentation: Merge</a>
      */
-    public final static <T> Observable<T> merge(Single<? extends T> t1, Single<? extends T> t2, Single<? extends T> t3) {
+    public static <T> Observable<T> merge(Single<? extends T> t1, Single<? extends T> t2, Single<? extends T> t3) {
         return Observable.merge(asObservable(t1), asObservable(t2), asObservable(t3));
     }
 
@@ -777,7 +772,7 @@ public class Single<T> {
      * @return an Observable that emits all of the items emitted by the source Singles
      * @see <a href="http://reactivex.io/documentation/operators/merge.html">ReactiveX operators documentation: Merge</a>
      */
-    public final static <T> Observable<T> merge(Single<? extends T> t1, Single<? extends T> t2, Single<? extends T> t3, Single<? extends T> t4) {
+    public static <T> Observable<T> merge(Single<? extends T> t1, Single<? extends T> t2, Single<? extends T> t3, Single<? extends T> t4) {
         return Observable.merge(asObservable(t1), asObservable(t2), asObservable(t3), asObservable(t4));
     }
 
@@ -806,7 +801,7 @@ public class Single<T> {
      * @return an Observable that emits all of the items emitted by the source Singles
      * @see <a href="http://reactivex.io/documentation/operators/merge.html">ReactiveX operators documentation: Merge</a>
      */
-    public final static <T> Observable<T> merge(Single<? extends T> t1, Single<? extends T> t2, Single<? extends T> t3, Single<? extends T> t4, Single<? extends T> t5) {
+    public static <T> Observable<T> merge(Single<? extends T> t1, Single<? extends T> t2, Single<? extends T> t3, Single<? extends T> t4, Single<? extends T> t5) {
         return Observable.merge(asObservable(t1), asObservable(t2), asObservable(t3), asObservable(t4), asObservable(t5));
     }
 
@@ -837,7 +832,7 @@ public class Single<T> {
      * @return an Observable that emits all of the items emitted by the source Singles
      * @see <a href="http://reactivex.io/documentation/operators/merge.html">ReactiveX operators documentation: Merge</a>
      */
-    public final static <T> Observable<T> merge(Single<? extends T> t1, Single<? extends T> t2, Single<? extends T> t3, Single<? extends T> t4, Single<? extends T> t5, Single<? extends T> t6) {
+    public static <T> Observable<T> merge(Single<? extends T> t1, Single<? extends T> t2, Single<? extends T> t3, Single<? extends T> t4, Single<? extends T> t5, Single<? extends T> t6) {
         return Observable.merge(asObservable(t1), asObservable(t2), asObservable(t3), asObservable(t4), asObservable(t5), asObservable(t6));
     }
 
@@ -870,7 +865,7 @@ public class Single<T> {
      * @return an Observable that emits all of the items emitted by the source Singles
      * @see <a href="http://reactivex.io/documentation/operators/merge.html">ReactiveX operators documentation: Merge</a>
      */
-    public final static <T> Observable<T> merge(Single<? extends T> t1, Single<? extends T> t2, Single<? extends T> t3, Single<? extends T> t4, Single<? extends T> t5, Single<? extends T> t6, Single<? extends T> t7) {
+    public static <T> Observable<T> merge(Single<? extends T> t1, Single<? extends T> t2, Single<? extends T> t3, Single<? extends T> t4, Single<? extends T> t5, Single<? extends T> t6, Single<? extends T> t7) {
         return Observable.merge(asObservable(t1), asObservable(t2), asObservable(t3), asObservable(t4), asObservable(t5), asObservable(t6), asObservable(t7));
     }
 
@@ -905,7 +900,7 @@ public class Single<T> {
      * @return an Observable that emits all of the items emitted by the source Singles
      * @see <a href="http://reactivex.io/documentation/operators/merge.html">ReactiveX operators documentation: Merge</a>
      */
-    public final static <T> Observable<T> merge(Single<? extends T> t1, Single<? extends T> t2, Single<? extends T> t3, Single<? extends T> t4, Single<? extends T> t5, Single<? extends T> t6, Single<? extends T> t7, Single<? extends T> t8) {
+    public static <T> Observable<T> merge(Single<? extends T> t1, Single<? extends T> t2, Single<? extends T> t3, Single<? extends T> t4, Single<? extends T> t5, Single<? extends T> t6, Single<? extends T> t7, Single<? extends T> t8) {
         return Observable.merge(asObservable(t1), asObservable(t2), asObservable(t3), asObservable(t4), asObservable(t5), asObservable(t6), asObservable(t7), asObservable(t8));
     }
 
@@ -942,7 +937,7 @@ public class Single<T> {
      * @return an Observable that emits all of the items emitted by the source Singles
      * @see <a href="http://reactivex.io/documentation/operators/merge.html">ReactiveX operators documentation: Merge</a>
      */
-    public final static <T> Observable<T> merge(Single<? extends T> t1, Single<? extends T> t2, Single<? extends T> t3, Single<? extends T> t4, Single<? extends T> t5, Single<? extends T> t6, Single<? extends T> t7, Single<? extends T> t8, Single<? extends T> t9) {
+    public static <T> Observable<T> merge(Single<? extends T> t1, Single<? extends T> t2, Single<? extends T> t3, Single<? extends T> t4, Single<? extends T> t5, Single<? extends T> t6, Single<? extends T> t7, Single<? extends T> t8, Single<? extends T> t9) {
         return Observable.merge(asObservable(t1), asObservable(t2), asObservable(t3), asObservable(t4), asObservable(t5), asObservable(t6), asObservable(t7), asObservable(t8), asObservable(t9));
     }
 
@@ -956,9 +951,9 @@ public class Single<T> {
      * <dd>{@code zip} does not operate by default on a particular {@link Scheduler}.</dd>
      * </dl>
      * 
-     * @param o1
+     * @param s1
      *            the first source Single
-     * @param o2
+     * @param s2
      *            a second source Single
      * @param zipFunction
      *            a function that, when applied to the item emitted by each of the source Singles, results in an
@@ -966,8 +961,13 @@ public class Single<T> {
      * @return a Single that emits the zipped results
      * @see <a href="http://reactivex.io/documentation/operators/zip.html">ReactiveX operators documentation: Zip</a>
      */
-    public final static <T1, T2, R> Single<R> zip(Single<? extends T1> o1, Single<? extends T2> o2, final Func2<? super T1, ? super T2, ? extends R> zipFunction) {
-        return just(new Observable<?>[] { asObservable(o1), asObservable(o2) }).lift(new OperatorZip<R>(zipFunction));
+    public static <T1, T2, R> Single<R> zip(Single<? extends T1> s1, Single<? extends T2> s2, final Func2<? super T1, ? super T2, ? extends R> zipFunction) {
+        return SingleOperatorZip.zip(new Single<?>[] {s1, s2}, new FuncN<R>() {
+            @Override
+            public R call(Object... args) {
+                return zipFunction.call((T1) args[0], (T2) args[1]);
+            }
+        });
     }
 
     /**
@@ -980,11 +980,11 @@ public class Single<T> {
      * <dd>{@code zip} does not operate by default on a particular {@link Scheduler}.</dd>
      * </dl>
      * 
-     * @param o1
+     * @param s1
      *            the first source Single
-     * @param o2
+     * @param s2
      *            a second source Single
-     * @param o3
+     * @param s3
      *            a third source Single
      * @param zipFunction
      *            a function that, when applied to the item emitted by each of the source Singles, results in an
@@ -992,8 +992,13 @@ public class Single<T> {
      * @return a Single that emits the zipped results
      * @see <a href="http://reactivex.io/documentation/operators/zip.html">ReactiveX operators documentation: Zip</a>
      */
-    public final static <T1, T2, T3, R> Single<R> zip(Single<? extends T1> o1, Single<? extends T2> o2, Single<? extends T3> o3, Func3<? super T1, ? super T2, ? super T3, ? extends R> zipFunction) {
-        return just(new Observable<?>[] { asObservable(o1), asObservable(o2), asObservable(o3) }).lift(new OperatorZip<R>(zipFunction));
+    public static <T1, T2, T3, R> Single<R> zip(Single<? extends T1> s1, Single<? extends T2> s2, Single<? extends T3> s3, final Func3<? super T1, ? super T2, ? super T3, ? extends R> zipFunction) {
+        return SingleOperatorZip.zip(new Single<?>[] {s1, s2, s3}, new FuncN<R>() {
+            @Override
+            public R call(Object... args) {
+                return zipFunction.call((T1) args[0], (T2) args[1], (T3) args[2]);
+            }
+        });
     }
 
     /**
@@ -1006,13 +1011,13 @@ public class Single<T> {
      * <dd>{@code zip} does not operate by default on a particular {@link Scheduler}.</dd>
      * </dl>
      * 
-     * @param o1
+     * @param s1
      *            the first source Single
-     * @param o2
+     * @param s2
      *            a second source Single
-     * @param o3
+     * @param s3
      *            a third source Single
-     * @param o4
+     * @param s4
      *            a fourth source Single
      * @param zipFunction
      *            a function that, when applied to the item emitted by each of the source Singles, results in an
@@ -1020,8 +1025,13 @@ public class Single<T> {
      * @return a Single that emits the zipped results
      * @see <a href="http://reactivex.io/documentation/operators/zip.html">ReactiveX operators documentation: Zip</a>
      */
-    public final static <T1, T2, T3, T4, R> Single<R> zip(Single<? extends T1> o1, Single<? extends T2> o2, Single<? extends T3> o3, Single<? extends T4> o4, Func4<? super T1, ? super T2, ? super T3, ? super T4, ? extends R> zipFunction) {
-        return just(new Observable<?>[] { asObservable(o1), asObservable(o2), asObservable(o3), asObservable(o4) }).lift(new OperatorZip<R>(zipFunction));
+    public static <T1, T2, T3, T4, R> Single<R> zip(Single<? extends T1> s1, Single<? extends T2> s2, Single<? extends T3> s3, Single<? extends T4> s4, final Func4<? super T1, ? super T2, ? super T3, ? super T4, ? extends R> zipFunction) {
+        return SingleOperatorZip.zip(new Single<?>[] {s1, s2, s3, s4}, new FuncN<R>() {
+            @Override
+            public R call(Object... args) {
+                return zipFunction.call((T1) args[0], (T2) args[1], (T3) args[2], (T4) args[3]);
+            }
+        });
     }
 
     /**
@@ -1034,15 +1044,15 @@ public class Single<T> {
      * <dd>{@code zip} does not operate by default on a particular {@link Scheduler}.</dd>
      * </dl>
      * 
-     * @param o1
+     * @param s1
      *            the first source Single
-     * @param o2
+     * @param s2
      *            a second source Single
-     * @param o3
+     * @param s3
      *            a third source Single
-     * @param o4
+     * @param s4
      *            a fourth source Single
-     * @param o5
+     * @param s5
      *            a fifth source Single
      * @param zipFunction
      *            a function that, when applied to the item emitted by each of the source Singles, results in an
@@ -1050,8 +1060,13 @@ public class Single<T> {
      * @return a Single that emits the zipped results
      * @see <a href="http://reactivex.io/documentation/operators/zip.html">ReactiveX operators documentation: Zip</a>
      */
-    public final static <T1, T2, T3, T4, T5, R> Single<R> zip(Single<? extends T1> o1, Single<? extends T2> o2, Single<? extends T3> o3, Single<? extends T4> o4, Single<? extends T5> o5, Func5<? super T1, ? super T2, ? super T3, ? super T4, ? super T5, ? extends R> zipFunction) {
-        return just(new Observable<?>[] { asObservable(o1), asObservable(o2), asObservable(o3), asObservable(o4), asObservable(o5) }).lift(new OperatorZip<R>(zipFunction));
+    public static <T1, T2, T3, T4, T5, R> Single<R> zip(Single<? extends T1> s1, Single<? extends T2> s2, Single<? extends T3> s3, Single<? extends T4> s4, Single<? extends T5> s5, final Func5<? super T1, ? super T2, ? super T3, ? super T4, ? super T5, ? extends R> zipFunction) {
+        return SingleOperatorZip.zip(new Single<?>[] {s1, s2, s3, s4, s5}, new FuncN<R>() {
+            @Override
+            public R call(Object... args) {
+                return zipFunction.call((T1) args[0], (T2) args[1], (T3) args[2], (T4) args[3], (T5) args[4]);
+            }
+        });
     }
 
     /**
@@ -1064,17 +1079,17 @@ public class Single<T> {
      * <dd>{@code zip} does not operate by default on a particular {@link Scheduler}.</dd>
      * </dl>
      * 
-     * @param o1
+     * @param s1
      *            the first source Single
-     * @param o2
+     * @param s2
      *            a second source Single
-     * @param o3
+     * @param s3
      *            a third source Single
-     * @param o4
+     * @param s4
      *            a fourth source Single
-     * @param o5
+     * @param s5
      *            a fifth source Single
-     * @param o6
+     * @param s6
      *            a sixth source Single
      * @param zipFunction
      *            a function that, when applied to the item emitted by each of the source Singles, results in an
@@ -1082,9 +1097,14 @@ public class Single<T> {
      * @return a Single that emits the zipped results
      * @see <a href="http://reactivex.io/documentation/operators/zip.html">ReactiveX operators documentation: Zip</a>
      */
-    public final static <T1, T2, T3, T4, T5, T6, R> Single<R> zip(Single<? extends T1> o1, Single<? extends T2> o2, Single<? extends T3> o3, Single<? extends T4> o4, Single<? extends T5> o5, Single<? extends T6> o6,
-            Func6<? super T1, ? super T2, ? super T3, ? super T4, ? super T5, ? super T6, ? extends R> zipFunction) {
-        return just(new Observable<?>[] { asObservable(o1), asObservable(o2), asObservable(o3), asObservable(o4), asObservable(o5), asObservable(o6) }).lift(new OperatorZip<R>(zipFunction));
+    public static <T1, T2, T3, T4, T5, T6, R> Single<R> zip(Single<? extends T1> s1, Single<? extends T2> s2, Single<? extends T3> s3, Single<? extends T4> s4, Single<? extends T5> s5, Single<? extends T6> s6,
+                                                            final Func6<? super T1, ? super T2, ? super T3, ? super T4, ? super T5, ? super T6, ? extends R> zipFunction) {
+        return SingleOperatorZip.zip(new Single<?>[] {s1, s2, s3, s4, s5, s6}, new FuncN<R>() {
+            @Override
+            public R call(Object... args) {
+                return zipFunction.call((T1) args[0], (T2) args[1], (T3) args[2], (T4) args[3], (T5) args[4], (T6) args[5]);
+            }
+        });
     }
 
     /**
@@ -1097,19 +1117,19 @@ public class Single<T> {
      * <dd>{@code zip} does not operate by default on a particular {@link Scheduler}.</dd>
      * </dl>
      * 
-     * @param o1
+     * @param s1
      *            the first source Single
-     * @param o2
+     * @param s2
      *            a second source Single
-     * @param o3
+     * @param s3
      *            a third source Single
-     * @param o4
+     * @param s4
      *            a fourth source Single
-     * @param o5
+     * @param s5
      *            a fifth source Single
-     * @param o6
+     * @param s6
      *            a sixth source Single
-     * @param o7
+     * @param s7
      *            a seventh source Single
      * @param zipFunction
      *            a function that, when applied to the item emitted by each of the source Singles, results in an
@@ -1117,9 +1137,14 @@ public class Single<T> {
      * @return a Single that emits the zipped results
      * @see <a href="http://reactivex.io/documentation/operators/zip.html">ReactiveX operators documentation: Zip</a>
      */
-    public final static <T1, T2, T3, T4, T5, T6, T7, R> Single<R> zip(Single<? extends T1> o1, Single<? extends T2> o2, Single<? extends T3> o3, Single<? extends T4> o4, Single<? extends T5> o5, Single<? extends T6> o6, Single<? extends T7> o7,
-            Func7<? super T1, ? super T2, ? super T3, ? super T4, ? super T5, ? super T6, ? super T7, ? extends R> zipFunction) {
-        return just(new Observable<?>[] { asObservable(o1), asObservable(o2), asObservable(o3), asObservable(o4), asObservable(o5), asObservable(o6), asObservable(o7) }).lift(new OperatorZip<R>(zipFunction));
+    public static <T1, T2, T3, T4, T5, T6, T7, R> Single<R> zip(Single<? extends T1> s1, Single<? extends T2> s2, Single<? extends T3> s3, Single<? extends T4> s4, Single<? extends T5> s5, Single<? extends T6> s6, Single<? extends T7> s7,
+                                                                final Func7<? super T1, ? super T2, ? super T3, ? super T4, ? super T5, ? super T6, ? super T7, ? extends R> zipFunction) {
+        return SingleOperatorZip.zip(new Single<?>[] {s1, s2, s3, s4, s5, s6, s7}, new FuncN<R>() {
+            @Override
+            public R call(Object... args) {
+                return zipFunction.call((T1) args[0], (T2) args[1], (T3) args[2], (T4) args[3], (T5) args[4], (T6) args[5], (T7) args[6]);
+            }
+        });
     }
 
     /**
@@ -1132,21 +1157,21 @@ public class Single<T> {
      * <dd>{@code zip} does not operate by default on a particular {@link Scheduler}.</dd>
      * </dl>
      * 
-     * @param o1
+     * @param s1
      *            the first source Single
-     * @param o2
+     * @param s2
      *            a second source Single
-     * @param o3
+     * @param s3
      *            a third source Single
-     * @param o4
+     * @param s4
      *            a fourth source Single
-     * @param o5
+     * @param s5
      *            a fifth source Single
-     * @param o6
+     * @param s6
      *            a sixth source Single
-     * @param o7
+     * @param s7
      *            a seventh source Single
-     * @param o8
+     * @param s8
      *            an eighth source Single
      * @param zipFunction
      *            a function that, when applied to the item emitted by each of the source Singles, results in an
@@ -1154,9 +1179,14 @@ public class Single<T> {
      * @return a Single that emits the zipped results
      * @see <a href="http://reactivex.io/documentation/operators/zip.html">ReactiveX operators documentation: Zip</a>
      */
-    public final static <T1, T2, T3, T4, T5, T6, T7, T8, R> Single<R> zip(Single<? extends T1> o1, Single<? extends T2> o2, Single<? extends T3> o3, Single<? extends T4> o4, Single<? extends T5> o5, Single<? extends T6> o6, Single<? extends T7> o7, Single<? extends T8> o8,
-            Func8<? super T1, ? super T2, ? super T3, ? super T4, ? super T5, ? super T6, ? super T7, ? super T8, ? extends R> zipFunction) {
-        return just(new Observable<?>[] { asObservable(o1), asObservable(o2), asObservable(o3), asObservable(o4), asObservable(o5), asObservable(o6), asObservable(o7), asObservable(o8) }).lift(new OperatorZip<R>(zipFunction));
+    public static <T1, T2, T3, T4, T5, T6, T7, T8, R> Single<R> zip(Single<? extends T1> s1, Single<? extends T2> s2, Single<? extends T3> s3, Single<? extends T4> s4, Single<? extends T5> s5, Single<? extends T6> s6, Single<? extends T7> s7, Single<? extends T8> s8,
+                                                                    final Func8<? super T1, ? super T2, ? super T3, ? super T4, ? super T5, ? super T6, ? super T7, ? super T8, ? extends R> zipFunction) {
+        return SingleOperatorZip.zip(new Single<?>[] {s1, s2, s3, s4, s5, s6, s7, s8}, new FuncN<R>() {
+            @Override
+            public R call(Object... args) {
+                return zipFunction.call((T1) args[0], (T2) args[1], (T3) args[2], (T4) args[3], (T5) args[4], (T6) args[5], (T7) args[6], (T8) args[7]);
+            }
+        });
     }
 
     /**
@@ -1169,23 +1199,23 @@ public class Single<T> {
      * <dd>{@code zip} does not operate by default on a particular {@link Scheduler}.</dd>
      * </dl>
      * 
-     * @param o1
+     * @param s1
      *            the first source Single
-     * @param o2
+     * @param s2
      *            a second source Single
-     * @param o3
+     * @param s3
      *            a third source Single
-     * @param o4
+     * @param s4
      *            a fourth source Single
-     * @param o5
+     * @param s5
      *            a fifth source Single
-     * @param o6
+     * @param s6
      *            a sixth source Single
-     * @param o7
+     * @param s7
      *            a seventh source Single
-     * @param o8
+     * @param s8
      *            an eighth source Single
-     * @param o9
+     * @param s9
      *            a ninth source Single
      * @param zipFunction
      *            a function that, when applied to the item emitted by each of the source Singles, results in an
@@ -1193,9 +1223,14 @@ public class Single<T> {
      * @return a Single that emits the zipped results
      * @see <a href="http://reactivex.io/documentation/operators/zip.html">ReactiveX operators documentation: Zip</a>
      */
-    public final static <T1, T2, T3, T4, T5, T6, T7, T8, T9, R> Single<R> zip(Single<? extends T1> o1, Single<? extends T2> o2, Single<? extends T3> o3, Single<? extends T4> o4, Single<? extends T5> o5, Single<? extends T6> o6, Single<? extends T7> o7, Single<? extends T8> o8,
-            Single<? extends T9> o9, Func9<? super T1, ? super T2, ? super T3, ? super T4, ? super T5, ? super T6, ? super T7, ? super T8, ? super T9, ? extends R> zipFunction) {
-        return just(new Observable<?>[] { asObservable(o1), asObservable(o2), asObservable(o3), asObservable(o4), asObservable(o5), asObservable(o6), asObservable(o7), asObservable(o8), asObservable(o9) }).lift(new OperatorZip<R>(zipFunction));
+    public static <T1, T2, T3, T4, T5, T6, T7, T8, T9, R> Single<R> zip(Single<? extends T1> s1, Single<? extends T2> s2, Single<? extends T3> s3, Single<? extends T4> s4, Single<? extends T5> s5, Single<? extends T6> s6, Single<? extends T7> s7, Single<? extends T8> s8,
+                                                                        Single<? extends T9> s9, final Func9<? super T1, ? super T2, ? super T3, ? super T4, ? super T5, ? super T6, ? super T7, ? super T8, ? super T9, ? extends R> zipFunction) {
+        return SingleOperatorZip.zip(new Single<?>[] {s1, s2, s3, s4, s5, s6, s7, s8, s9}, new FuncN<R>() {
+            @Override
+            public R call(Object... args) {
+                return zipFunction.call((T1) args[0], (T2) args[1], (T3) args[2], (T4) args[3], (T5) args[4], (T6) args[5], (T7) args[6], (T8) args[7], (T9) args[8]);
+            }
+        });
     }
 
     /**
@@ -1258,6 +1293,9 @@ public class Single<T> {
      * @see <a href="http://reactivex.io/documentation/operators/flatmap.html">ReactiveX operators documentation: FlatMap</a>
      */
     public final <R> Single<R> flatMap(final Func1<? super T, ? extends Single<? extends R>> func) {
+        if (this instanceof ScalarSynchronousSingle) {
+            return ((ScalarSynchronousSingle<T>) this).scalarFlatMap(func);
+        }
         return merge(map(func));
     }
 
@@ -1340,6 +1378,9 @@ public class Single<T> {
      * @see #subscribeOn
      */
     public final Single<T> observeOn(Scheduler scheduler) {
+        if (this instanceof ScalarSynchronousSingle) {
+            return ((ScalarSynchronousSingle<T>)this).scalarScheduleOn(scheduler);
+        }
         return lift(new OperatorObserveOn<T>(scheduler));
     }
 
@@ -1370,7 +1411,38 @@ public class Single<T> {
      * @see <a href="http://reactivex.io/documentation/operators/catch.html">ReactiveX operators documentation: Catch</a>
      */
     public final Single<T> onErrorReturn(Func1<Throwable, ? extends T> resumeFunction) {
-        return lift(new OperatorOnErrorReturn<T>(resumeFunction));
+        return lift(OperatorOnErrorResumeNextViaFunction.withSingle(resumeFunction));
+    }
+
+    /**
+     * Instructs a Single to pass control to another Single rather than invoking
+     * {@link Observer#onError(Throwable)} if it encounters an error.
+     * <p/>
+     * <img width="640" height="310" src="https://raw.github.com/wiki/ReactiveX/RxJava/images/rx-operators/onErrorResumeNext.png" alt="">
+     * <p/>
+     * By default, when a Single encounters an error that prevents it from emitting the expected item to
+     * its {@link Observer}, the Single invokes its Observer's {@code onError} method, and then quits
+     * without invoking any more of its Observer's methods. The {@code onErrorResumeNext} method changes this
+     * behavior. If you pass another Single ({@code resumeSingleInCaseOfError}) to an Single's
+     * {@code onErrorResumeNext} method, if the original Single encounters an error, instead of invoking its
+     * Observer's {@code onError} method, it will instead relinquish control to {@code resumeSingleInCaseOfError} which
+     * will invoke the Observer's {@link Observer#onNext onNext} method if it is able to do so. In such a case,
+     * because no Single necessarily invokes {@code onError}, the Observer may never know that an error
+     * happened.
+     * <p/>
+     * You can use this to prevent errors from propagating or to supply fallback data should errors be
+     * encountered.
+     * <dl>
+     * <dt><b>Scheduler:</b></dt>
+     * <dd>{@code onErrorResumeNext} does not operate by default on a particular {@link Scheduler}.</dd>
+     * </dl>
+     *
+     * @param resumeSingleInCaseOfError a Single that will take control if source Single encounters an error.
+     * @return the original Single, with appropriately modified behavior.
+     * @see <a href="http://reactivex.io/documentation/operators/catch.html">ReactiveX operators documentation: Catch</a>
+     */
+    public final Single<T> onErrorResumeNext(Single<? extends T> resumeSingleInCaseOfError) {
+        return new Single<T>(new SingleOperatorOnErrorResumeNextViaSingle<T>(this, resumeSingleInCaseOfError));
     }
 
     /**
@@ -1698,8 +1770,46 @@ public class Single<T> {
      * @see <a href="http://www.grahamlea.com/2014/07/rxjava-threading-examples/">RxJava Threading Examples</a>
      * @see #observeOn
      */
-    public final Single<T> subscribeOn(Scheduler scheduler) {
-        return nest().lift(new OperatorSubscribeOn<T>(scheduler));
+    public final Single<T> subscribeOn(final Scheduler scheduler) {
+        if (this instanceof ScalarSynchronousSingle) {
+            return ((ScalarSynchronousSingle<T>)this).scalarScheduleOn(scheduler);
+        }
+        return create(new OnSubscribe<T>() {
+            @Override
+            public void call(final SingleSubscriber<? super T> t) {
+                final Scheduler.Worker w = scheduler.createWorker();
+                t.add(w);
+
+                w.schedule(new Action0() {
+                    @Override
+                    public void call() {
+                        SingleSubscriber<T> ssub = new SingleSubscriber<T>() {
+                            @Override
+                            public void onSuccess(T value) {
+                                try {
+                                    t.onSuccess(value);
+                                } finally {
+                                    w.unsubscribe();
+                                }
+                            }
+
+                            @Override
+                            public void onError(Throwable error) {
+                                try {
+                                    t.onError(error);
+                                } finally {
+                                    w.unsubscribe();
+                                }
+                            }
+                        };
+
+                        t.add(ssub);
+
+                        Single.this.subscribe(ssub);
+                    }
+                });
+            }
+        });
     }
     
     /**

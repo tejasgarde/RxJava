@@ -24,6 +24,7 @@ import rx.Producer;
 import rx.Subscriber;
 import rx.Subscription;
 import rx.annotations.Experimental;
+import rx.exceptions.Exceptions;
 import rx.functions.Action0;
 import rx.functions.Action1;
 import rx.functions.Action2;
@@ -53,7 +54,16 @@ public abstract class SyncOnSubscribe<S, T> implements OnSubscribe<T> {
      */
     @Override
     public final void call(final Subscriber<? super T> subscriber) {
-        S state = generateState();
+        S state;
+        
+        try {
+            state = generateState();
+        } catch (Throwable e) {
+            Exceptions.throwIfFatal(e);
+            subscriber.onError(e);
+            return;
+        }
+        
         SubscriptionProducer<S, T> p = new SubscriptionProducer<S, T>(subscriber, this, state);
         subscriber.add(p);
         subscriber.setProducer(p);
@@ -271,7 +281,7 @@ public abstract class SyncOnSubscribe<S, T> implements OnSubscribe<T> {
         private final Func2<? super S, ? super Observer<? super T>, ? extends S> next;
         private final Action1<? super S> onUnsubscribe;
 
-        private SyncOnSubscribeImpl(Func0<? extends S> generator, Func2<? super S, ? super Observer<? super T>, ? extends S> next, Action1<? super S> onUnsubscribe) {
+        SyncOnSubscribeImpl(Func0<? extends S> generator, Func2<? super S, ? super Observer<? super T>, ? extends S> next, Action1<? super S> onUnsubscribe) {
             this.generator = generator;
             this.next = next;
             this.onUnsubscribe = onUnsubscribe;
@@ -322,8 +332,8 @@ public abstract class SyncOnSubscribe<S, T> implements OnSubscribe<T> {
         private boolean hasTerminated;
         
         private S state;
-        
-        private SubscriptionProducer(final Subscriber<? super T> subscriber, SyncOnSubscribe<S, T> parent, S state) {
+
+        SubscriptionProducer(final Subscriber<? super T> subscriber, SyncOnSubscribe<S, T> parent, S state) {
             this.actualSubscriber = subscriber;
             this.parent = parent;
             this.state = state;
@@ -363,7 +373,12 @@ public abstract class SyncOnSubscribe<S, T> implements OnSubscribe<T> {
         }
 
         private void doUnsubscribe() {
-            parent.onUnsubscribe(state);
+            try {
+                parent.onUnsubscribe(state);
+            } catch (Throwable e) {
+                Exceptions.throwIfFatal(e);
+                RxJavaPlugins.getInstance().getErrorHandler().handleError(e);
+            }
         }
 
         @Override
